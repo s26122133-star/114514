@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日系風自定義迷因產生器 ✨ Meme Generator</title>
+
+    <!-- 引入 Google Fonts：日系圓體與繁體中文 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&family=Noto+Sans+TC:wght@500;700;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+
+    <!-- 引入 Tailwind CSS 快速打造 UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- 引入 FontAwesome 圖示庫 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- 引入 html2canvas 截圖下載庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        /* 全域字體與背景設定 */
+        body {
+            font-family: 'Zen Maru Gothic', 'M PLUS Rounded 1c', 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #fff5f8 0%, #f3e8ff 50%, #e0f2fe 100%);
+            color: #4a4a68;
+            min-height: 100vh;
+        }
+
+        /* 日系卡哇伊陰影與邊框 */
+        .kawaii-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 3px solid #fbcfe8;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(244, 114, 182, 0.2), 0 8px 10px -6px rgba(244, 114, 182, 0.1);
+        }
+
+        /* 可愛粉紅滑桿樣式 */
+        input[type=range] {
+            accent-color: #ec4899;
+        }
+
+        /* 迷因文字效果：雙層文字黑色邊框 (也可以自訂 border color) */
+        .meme-text {
+            word-break: break-word;
+            font-weight: 900;
+            line-height: 1.2;
+            text-transform: uppercase;
+            user-select: none;
+            text-shadow: 
+                -2px -2px 0 var(--stroke-color, #000),  
+                 2px -2px 0 var(--stroke-color, #000),
+                -2px  2px 0 var(--stroke-color, #000),
+                 2px  2px 0 var(--stroke-color, #000),
+                -3px  0px 0 var(--stroke-color, #000),
+                 3px  0px 0 var(--stroke-color, #000),
+                 0px -3px 0 var(--stroke-color, #000),
+                 0px  3px 0 var(--stroke-color, #000),
+                 0px 4px 8px rgba(0,0,0,0.5);
+        }
+
+        /* Q彈日系按鈕動畫 */
+        .kawaii-btn {
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .kawaii-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 20px rgba(236, 72, 153, 0.3);
+        }
+        .kawaii-btn:active {
+            transform: translateY(1px) scale(0.98);
+        }
+
+        /* 可點擊刪除的貼紙 */
+        .sticker-item {
+            cursor: move;
+            user-select: none;
+            touch-action: none;
+            transition: transform 0.1s ease;
+        }
+        .sticker-item:hover {
+            outline: 2px dashed #ec4899;
+            border-radius: 8px;
+        }
+
+        /* 自訂滾動條 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #fbcfe8;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #f472b6;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <!-- 頂部標題區 -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-5xl font-black text-pink-500 drop-shadow-md tracking-wider flex items-center justify-center gap-3">
+                <span>✨ ミーム生成器 ✨</span>
+            </h1>
+            <p class="text-purple-600 font-bold mt-2 text-sm md:text-base">
+                輕鬆創作專屬日系梗圖，製作你的卡哇伊迷因！
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+            <!-- 左側/上方：控制面板區 (佔 5 欄) -->
+            <div class="lg:col-span-5 kawaii-card p-6 flex flex-col gap-5">
+                <h2 class="text-xl font-bold text-pink-600 border-b-2 border-pink-200 pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders"></i> 控制面板 (設定)
+                </h2>
+
+                <!-- 1. 圖片上傳區 -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">
+                        📷 選擇底圖 (上傳圖片)
+                    </label>
+                    <label class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-pink-300 rounded-2xl cursor-pointer bg-pink-50/50 hover:bg-pink-100/50 transition">
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <i class="fa-solid fa-cloud-arrow-up text-2xl text-pink-400 mb-1"></i>
+                            <p class="text-xs text-gray-500 font-bold">點擊選擇檔案 或 將圖片拖曳至此</p>
+                        </div>
+                        <!-- 圖片上傳 input -->
+                        <input id="imageInput" type="file" accept="image/*" class="hidden" />
+                    </label>
+                </div>
+
+                <!-- 2. 文字輸入區 -->
+                <div class="space-y-3">
+                    <div>
+                        <label for="topTextInput" class="block text-xs font-bold text-gray-600 mb-1">上方文字 (Top Text)</label>
+                        <input type="text" id="topTextInput" value="當你看到這張圖" placeholder="輸入上方文字..." 
+                            class="w-full px-4 py-2 rounded-xl border-2 border-pink-200 focus:border-pink-500 focus:outline-none text-sm font-bold">
+                    </div>
+                    <div>
+                        <label for="bottomTextInput" class="block text-xs font-bold text-gray-600 mb-1">下方文字 (Bottom Text)</label>
+                        <input type="text" id="bottomTextInput" value="代表你該休息了！" placeholder="輸入下方文字..." 
+                            class="w-full px-4 py-2 rounded-xl border-2 border-pink-200 focus:border-pink-500 focus:outline-none text-sm font-bold">
+                    </div>
+                </div>
+
+                <!-- 3. 文字與邊框顏色選取器 -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">🎨 文字顏色</label>
+                        <input type="color" id="textColorInput" value="#ffffff" class="w-full h-10 rounded-xl cursor-pointer border-2 border-pink-200 p-1">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">🖼️ 邊框顏色</label>
+                        <input type="color" id="strokeColorInput" value="#000000" class="w-full h-10 rounded-xl cursor-pointer border-2 border-pink-200 p-1">
+                    </div>
+                </div>
+
+                <!-- 4. 滑桿微調參數區 -->
+                <div class="space-y-3 bg-white/60 p-4 rounded-xl border border-pink-100">
+                    <h3 class="text-xs font-bold text-pink-500 uppercase tracking-wider">滑桿微調工具</h3>
+                    
+                    <!-- 字體大小 -->
+                    <div>
+                        <div class="flex justify-between text-xs font-bold text-gray-600 mb-1">
+                            <span>字體大小</span>
+                            <span id="fontSizeVal">32px</span>
+                        </div>
+                        <input type="range" id="fontSizeSlider" min="16" max="72" value="32" class="w-full">
+                    </div>
+
+                    <!-- 上方文字垂直位置 -->
+                    <div>
+                        <div class="flex justify-between text-xs font-bold text-gray-600 mb-1">
+                            <span>上方文字位置 (Top Offset)</span>
+                            <span id="topPosVal">5%</span>
+                        </div>
+                        <input type="range" id="topPosSlider" min="0" max="80" value="5" class="w-full">
+                    </div>
+
+                    <!-- 下方文字垂直位置 -->
+                    <div>
+                        <div class="flex justify-between text-xs font-bold text-gray-600 mb-1">
+                            <span>下方文字位置 (Bottom Offset)</span>
+                            <span id="bottomPosVal">5%</span>
+                        </div>
+                        <input type="range" id="bottomPosSlider" min="0" max="80" value="5" class="w-full">
+                    </div>
+
+                    <!-- 文字旋轉角度 (追加體驗功能) -->
+                    <div>
+                        <div class="flex justify-between text-xs font-bold text-gray-600 mb-1">
+                            <span>文字傾斜角度</span>
+                            <span id="rotateVal">0°</span>
+                        </div>
+                        <input type="range" id="rotateSlider" min="-30" max="30" value="0" class="w-full">
+                    </div>
+                </div>
+
+                <!-- 5. 日系流行裝飾貼紙 -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-2">🎀 點擊新增日系梗貼紙 (可點擊圖片上貼紙進行移除)</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="add-sticker-btn bg-pink-100 hover:bg-pink-200 text-pink-700 text-xs px-3 py-1.5 rounded-full font-bold transition">草 (www)</button>
+                        <button class="add-sticker-btn bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs px-3 py-1.5 rounded-full font-bold transition">最高！</button>
+                        <button class="add-sticker-btn bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs px-3 py-1.5 rounded-full font-bold transition">神作 ✨</button>
+                        <button class="add-sticker-btn bg-yellow-100 hover:bg-yellow-200 text-yellow-700 text-xs px-3 py-1.5 rounded-full font-bold transition">無理無理 ❌</button>
+                        <button class="add-sticker-btn bg-red-100 hover:bg-red-200 text-red-700 text-xs px-3 py-1.5 rounded-full font-bold transition">尊い ❤️</button>
+                    </div>
+                </div>
+
+                <!-- 6. 下載按鈕 -->
+                <button id="downloadBtn" class="kawaii-btn w-full py-3.5 bg-gradient-to-r from-pink-400 to-purple-400 text-white font-black text-lg rounded-2xl shadow-lg flex items-center justify-center gap-2 mt-2">
+                    <i class="fa-solid fa-download"></i> 下載迷因圖 (my-meme.png)
+                </button>
+            </div>
+
+            <!-- 右側/下方：迷因預覽區 (佔 7 欄) -->
+            <div class="lg:col-span-7 flex flex-col items-center">
+                <div class="kawaii-card p-4 md:p-6 w-full flex flex-col items-center">
+                    <h2 class="text-xl font-bold text-pink-600 mb-4 self-start flex items-center gap-2">
+                        <i class="fa-solid fa-eye"></i> 即時預覽 (Preview)
+                    </h2>
+
+                    <!-- 迷因容器區塊 (將被 html2canvas 截圖的區域) -->
+                    <div id="memeContainer" class="relative overflow-hidden rounded-2xl bg-gray-900 flex items-center justify-center max-w-full shadow-inner select-none" style="min-height: 300px;">
+                        
+                        <!-- 背景底圖 -->
+                        <img id="memeImage" src="https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800&auto=format&fit=crop&q=80" 
+                             alt="Meme Base" class="w-full h-auto max-h-[600px] object-contain block pointer-events-none" />
+
+                        <!-- 上方文字 -->
+                        <div id="topTextDisplay" class="meme-text absolute left-0 right-0 text-center px-4 leading-tight" 
+                             style="top: 5%; color: #ffffff; --stroke-color: #000000; font-size: 32px;">
+                            當你看到這張圖
+                        </div>
+
+                        <!-- 下方文字 -->
+                        <div id="bottomTextDisplay" class="meme-text absolute left-0 right-0 text-center px-4 leading-tight" 
+                             style="bottom: 5%; color: #ffffff; --stroke-color: #000000; font-size: 32px;">
+                            代表你該休息了！
+                        </div>
+
+                        <!-- 貼紙容器層 -->
+                        <div id="stickerLayer" class="absolute inset-0 pointer-events-none"></div>
+                    </div>
+
+                    <p class="text-xs text-gray-400 mt-3 font-medium text-center">
+                        💡 提示：點擊右上角新增的貼紙可隨機擺放，點擊圖上貼紙即可刪除。
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // 確保 DOM 載入完成後執行腳本
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // === 1. 取得頁面中的 DOM 元素 ===
+            const imageInput = document.getElementById('imageInput');
+            const memeImage = document.getElementById('memeImage');
+            
+            const topTextInput = document.getElementById('topTextInput');
+            const bottomTextInput = document.getElementById('bottomTextInput');
+            const topTextDisplay = document.getElementById('topTextDisplay');
+            const bottomTextDisplay = document.getElementById('bottomTextDisplay');
+
+            const textColorInput = document.getElementById('textColorInput');
+            const strokeColorInput = document.getElementById('strokeColorInput');
+
+            const fontSizeSlider = document.getElementById('fontSizeSlider');
+            const topPosSlider = document.getElementById('topPosSlider');
+            const bottomPosSlider = document.getElementById('bottomPosSlider');
+            const rotateSlider = document.getElementById('rotateSlider');
+
+            const fontSizeVal = document.getElementById('fontSizeVal');
+            const topPosVal = document.getElementById('topPosVal');
+            const bottomPosVal = document.getElementById('bottomPosVal');
+            const rotateVal = document.getElementById('rotateVal');
+
+            const downloadBtn = document.getElementById('downloadBtn');
+            const memeContainer = document.getElementById('memeContainer');
+            const stickerLayer = document.getElementById('stickerLayer');
+
+            // === 2. 本機圖片上傳處理 (FileReader API) ===
+            imageInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    // 使用 FileReader 讀取本地圖片，轉換為 Base64 格式，避免 CORS 截圖錯誤
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        memeImage.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // === 3. 文字即時同步顯示 ===
+            topTextInput.addEventListener('input', () => {
+                topTextDisplay.textContent = topTextInput.value || '';
+            });
+
+            bottomTextInput.addEventListener('input', () => {
+                bottomTextDisplay.textContent = bottomTextInput.value || '';
+            });
+
+            // === 4. 文字與邊框顏色微調 ===
+            textColorInput.addEventListener('input', (e) => {
+                const color = e.target.value;
+                topTextDisplay.style.color = color;
+                bottomTextDisplay.style.color = color;
+            });
+
+            strokeColorInput.addEventListener('input', (e) => {
+                const strokeColor = e.target.value;
+                // 設定 CSS 變數調整邊框顏色
+                topTextDisplay.style.setProperty('--stroke-color', strokeColor);
+                bottomTextDisplay.style.setProperty('--stroke-color', strokeColor);
+            });
+
+            // === 5. 參數滑桿即時控制 ===
+            // 字體大小
+            fontSizeSlider.addEventListener('input', (e) => {
+                const val = e.target.value + 'px';
+                fontSizeVal.textContent = val;
+                topTextDisplay.style.fontSize = val;
+                bottomTextDisplay.style.fontSize = val;
+            });
+
+            // 上方文字垂直位置
+            topPosSlider.addEventListener('input', (e) => {
+                const val = e.target.value + '%';
+                topPosVal.textContent = val;
+                topTextDisplay.style.top = val;
+            });
+
+            // 下方文字垂直位置
+            bottomPosSlider.addEventListener('input', (e) => {
+                const val = e.target.value + '%';
+                bottomPosVal.textContent = val;
+                bottomTextDisplay.style.bottom = val;
+            });
+
+            // 文字傾斜角度
+            rotateSlider.addEventListener('input', (e) => {
+                const val = e.target.value + 'deg';
+                rotateVal.textContent = val;
+                topTextDisplay.style.transform = `rotate(${val})`;
+                bottomTextDisplay.style.transform = `rotate(${val})`;
+            });
+
+            // === 6. 日系貼紙動態新增與刪除 ===
+            document.querySelectorAll('.add-sticker-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const stickerText = btn.textContent;
+                    
+                    // 建立貼紙元素
+                    const sticker = document.createElement('div');
+                    sticker.className = 'sticker-item absolute bg-white/90 border-2 border-pink-400 text-pink-600 font-black px-3 py-1 rounded-full shadow-lg text-sm pointer-events-auto flex items-center gap-1';
+                    sticker.innerHTML = `<span>${stickerText}</span> <i class="fa-solid fa-xmark text-xs opacity-50 hover:opacity-100"></i>`;
+                    
+                    // 隨機擺放位置
+                    const randomTop = Math.floor(Math.random() * 60) + 20;
+                    const randomLeft = Math.floor(Math.random() * 60) + 20;
+                    sticker.style.top = `${randomTop}%`;
+                    sticker.style.left = `${randomLeft}%`;
+
+                    // 點擊貼紙進行刪除
+                    sticker.addEventListener('click', () => {
+                        sticker.remove();
+                    });
+
+                    stickerLayer.appendChild(sticker);
+                });
+            });
+
+            // === 7. 一鍵截圖下載功能 ===
+            downloadBtn.addEventListener('click', () => {
+                // 顯示載入狀態
+                const originalBtnText = downloadBtn.innerHTML;
+                downloadBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 圖片生成中...`;
+                downloadBtn.disabled = true;
+
+                // 使用 html2canvas 捕捉預覽區域 DOM
+                html2canvas(memeContainer, {
+                    useCORS: true, // 支援跨域圖片 (本地 Base64 無此問題)
+                    scale: 2, // 提高圖片解析度與清晰度
+                    backgroundColor: null
+                }).then(canvas => {
+                    // 將 canvas 轉為圖片 Data URL
+                    const imageUrl = canvas.toDataURL('image/png');
+
+                    // 建立隱藏的 a 標籤發起下載
+                    const link = document.createElement('a');
+                    link.href = imageUrl;
+                    link.download = 'my-meme.png';
