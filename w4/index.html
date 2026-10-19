@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朋友對我的動態留言板 - 漫畫風</title>
+  
+  <!-- 導入漫畫感手寫與粗體字型 (Google Fonts) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Noto+Sans+TC:wght@700;900&display=swap" rel="stylesheet">
+
+  <style>
+    /* =========================================================
+       1. 全局與視覺風格設定 (Comic Book / Pop-Art 漫畫風格)
+       ========================================================= */
+    :root {
+      /* 【顏色控制區】可以在這裡輕鬆修改漫畫主題色彩 */
+      --bg-color: #ffeb3b;          /* 主背景色 (鮮黃色) */
+      --card-bg: #ffffff;           /* 卡片背景 (純白) */
+      --text-main: #111111;         /* 主要文字 (極深黑) */
+      --border-color: #000000;      /* 粗邊框顏色 (純黑) */
+      
+      --accent-yellow: #fff176;    /* 點綴黃 */
+      --accent-pink: #ff4081;      /* 點綴粉紅 (標題與亮點) */
+      --accent-blue: #00e5ff;      /* 點綴對話框藍 */
+      
+      /* 輪播高亮時的專屬色彩 */
+      --highlight-border: #ff1744;  /* 高亮邊框色 (爆發紅) */
+      --highlight-bg: #ffffff;      /* 高亮卡片背景 */
+      --shadow-offset: 6px;         /* 漫畫風美式硬陰影偏移量 */
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      /* 漫畫風斜線點點背景圖案 */
+      background-image: 
+        radial-gradient(var(--border-color) 15%, transparent 16%),
+        radial-gradient(var(--border-color) 15%, transparent 16%);
+      background-size: 20px 20px;
+      background-position: 0 0, 10px 10px;
+      background-opacity: 0.1;
+      color: var(--text-main);
+      font-family: 'Noto Sans TC', 'Comic Neue', sans-serif;
+      padding: 2rem 1rem;
+      min-height: 100vh;
+      /* 給背景加上稍微淡化的 overlay */
+      background-color: rgba(255, 235, 59, 0.85);
+      background-blend-mode: overlay;
+    }
+
+    /* 頁面頂部 Header 漫畫橫幅 */
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      position: relative;
+    }
+
+    .header-title-box {
+      display: inline-block;
+      background-color: var(--accent-pink);
+      color: #fff;
+      padding: 0.8rem 2rem;
+      border: 4px solid var(--border-color);
+      box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+      transform: rotate(-2deg); /* 微微傾斜更具漫畫隨性感 */
+      position: relative;
+    }
+
+    .header-title-box h1 {
+      font-size: 2.2rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-shadow: 3px 3px 0px var(--border-color);
+      -webkit-text-stroke: 1px var(--border-color);
+    }
+
+    .header-subtitle {
+      margin-top: 1rem;
+      font-weight: 700;
+      background: #fff;
+      display: inline-block;
+      padding: 0.3rem 1rem;
+      border: 3px solid var(--border-color);
+      box-shadow: 3px 3px 0px var(--border-color);
+      transform: rotate(1deg);
+    }
+
+    /* =========================================================
+       2. 漫畫對話框風格 載入中動畫 (Comic Loading)
+       ========================================================= */
+    #loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 0;
+    }
+
+    /* 漫畫對話框外觀的載入盒 */
+    .comic-loading-box {
+      background: #fff;
+      border: 4px solid var(--border-color);
+      padding: 1.5rem 2.5rem;
+      border-radius: 20px;
+      box-shadow: 8px 8px 0px var(--border-color);
+      position: relative;
+      animation: comic-bounce 0.8s ease-in-out infinite alternate;
+    }
+
+    /* 對話框小尾巴 */
+    .comic-loading-box::after {
+      content: '';
+      position: absolute;
+      bottom: -20px;
+      left: 30px;
+      border-width: 20px 15px 0 0;
+      border-style: solid;
+      border-color: var(--border-color) transparent transparent transparent;
+    }
+
+    .loading-text {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--border-color);
+      letter-spacing: 2px;
+    }
+
+    /* 上下跳動動畫 */
+    @keyframes comic-bounce {
+      0% { transform: translateY(0) rotate(-1deg); }
+      100% { transform: translateY(-12px) rotate(1deg); }
+    }
+
+    /* =========================================================
+       3. 瀑布流牆與卡片排版 (Masonry Layout)
+       ========================================================= */
+    .masonry-wall {
+      /* 利用 column-count 做到高低錯落瀑布流 */
+      column-count: 1;
+      column-gap: 1.8rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* 響應式斷點：寬螢幕顯示多欄 */
+    @media (min-width: 600px) { .masonry-wall { column-count: 2; } }
+    @media (min-width: 900px) { .masonry-wall { column-count: 3; } }
+    @media (min-width: 1200px) { .masonry-wall { column-count: 4; } }
+
+    /* 漫畫卡片基本樣式 */
+    .card {
+      background-color: var(--card-bg);
+      border: 4px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.25rem;
+      margin-bottom: 1.8rem;
+      /* 防止卡片被瀑布流欄位截斷 (關鍵屬性) */
+      break-inside: avoid;
+      box-shadow: 6px 6px 0px var(--border-color);
+      position: relative;
+      
+      /* 設定過渡效果，讓輪播切換極具動感 */
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+                  box-shadow 0.4s ease,
+                  filter 0.4s ease,
+                  opacity 0.4s ease;
+      opacity: 1;
+      filter: blur(0px);
+      transform: scale(1) rotate(0deg);
+    }
+
+    /* 卡片頭部 (作者與對話標籤) */
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.8rem;
+      border-bottom: 3px dashed var(--border-color);
+      padding-bottom: 0.5rem;
+    }
+
+    /* 漫畫風作者名字標牌 */
+    .card-author {
+      font-weight: 900;
+      font-size: 1.15rem;
+      background-color: var(--accent-blue);
+      color: var(--border-color);
+      padding: 0.2rem 0.6rem;
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      box-shadow: 2px 2px 0px var(--border-color);
+      display: inline-block;
+    }
+
+    .card-time {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #555;
+    }
+
+    /* 卡片內文 */
+    .card-content {
+      font-size: 1rem;
+      line-height: 1.6;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: pre-wrap; /* 保留換行符號 */
+      word-break: break-word;
+      position: relative;
+      padding: 0.3rem 0;
+    }
+
+    /* 漫畫對話框角角效果 (左上角裝飾點) */
+    .card::before {
+      content: '💬';
+      position: absolute;
+      top: -12px;
+      right: 12px;
+      font-size: 1.2rem;
+      background: #fff;
+      border: 2px solid var(--border-color);
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* =========================================================
+       4. 輪播高亮與暗化特效狀態 (Carousel States)
+       ========================================================= */
+    /* 被選中的高亮卡片：爆發大放大 + 亮紅色粗邊框 + 閃爍陰影 */
+    .card.highlight {
+      transform: scale(1.12) rotate(-1.5deg); /* 放大 12% 且微傾斜 */
+      border-color: var(--border-color);
+      background-color: #ffffff;
+      box-shadow: 12px 12px 0px var(--highlight-border); /* 爆發紅硬陰影 */
+      z-index: 100;
+      position: relative;
+    }
+
+    .card.highlight .card-author {
+      background-color: var(--accent-pink);
+      color: #fff;
+      animation: shake 0.5s ease-in-out infinite alternate;
+    }
+
+    /* 輕微晃動漫畫效果 */
+    @keyframes shake {
+      0% { transform: rotate(-2deg); }
+      100% { transform: rotate(2deg); }
+    }
+
+    /* 未被選中的卡片：暗化 + 微模糊 + 縮小 */
+    .card.dimmed {
+      opacity: 0.35;        /* 透明度降低 */
+      filter: blur(1.5px);   /* 模糊效果 */
+      transform: scale(0.94);/* 稍微縮小 */
+      box-shadow: 3px 3px 0px var(--border-color);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-title-box">
+      <h1>💥 朋友對我的動態留言板 💥</h1>
+    </div>
+    <br>
+    <div class="header-subtitle">
+      <span>POP-ART EXHIBITION ‧ 輪播展示中</span>
+    </div>
+  </header>
+
+  <!-- 載入中動畫 -->
+  <div id="loading">
+    <div class="comic-loading-box">
+      <div class="loading-text">讀取留言中...</div>
+    </div>
+  </div>
+
+  <!-- 留言牆容器 -->
+  <div id="wall" class="masonry-wall"></div>
+
+  <script>
+    /* =========================================================
+       【設定區】CSV 網址與輪播參數設定
+       ========================================================= */
+    // 串接指定的 Google 試算表 CSV 發布網址
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSHmxW72nA9Ie2do0DHY8lCpN_-RC6s2f_SdeGJP4wqSbLeWWAkLW1xTNrWWi9Q1oCsPY03bQf5Kd2F/pub?output=csv'; 
+
+    // 【輪播秒數控制區】單位為毫秒 (1000ms = 1秒)
+    const CAROUSEL_INTERVAL_MS = 3000; // 目前設定為每 3 秒更換一次高亮卡片
+
+    // 全局變數
+    let messagesData = [];
+    let currentIndex = 0; // 當前高亮的卡片索引
+    let carouselTimer = null; // 輪播計時器實體
+
+    /* =========================================================
+       1. CSV 解析器 (相容包含逗號、雙引號與換行的文字)
+       ========================================================= */
+    function parseCSV(text) {
+      const result = [];
+      let row = [];
+      let entry = '';
+      let insideQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        const nextC = text[i + 1];
+
+        if (c === '"') {
+          // 處理雙引號轉義 ("")
+          if (insideQuotes && nextC === '"') {
+            entry += '"';
+            i++;
+          } else {
+            // 切換雙引號包裹狀態
+            insideQuotes = !insideQuotes;
+          }
+        } else if (c === ',' && !insideQuotes) {
+          // 遇到逗號且不在雙引號內 -> 分割欄位
+          row.push(entry.trim());
+          entry = '';
+        } else if ((c === '\r' || c === '\n') && !insideQuotes) {
+          // 遇到換行符號且不在雙引號內 -> 分割列
+          if (c === '\r' && nextC === '\n') {
+            i++; // 處理 Windows \r\n 換行
+          }
+          row.push(entry.trim());
+          if (row.length > 1 || row[0] !== '') {
+            result.push(row);
+          }
+          row = [];
+          entry = '';
+        } else {
+          entry += c;
+        }
+      }
+      
+      // 處理最後一行資料
+      if (entry || row.length > 0) {
+        row.push(entry.trim());
+        result.push(row);
+      }
+      return result;
+    }
+
+    /* =========================================================
+       2. 資料讀取與處理 (Fetch & Parse)
+       ========================================================= */
+    async function fetchMessages() {
+      try {
+        const response = await fetch(CSV_URL);
+        if (!response.ok) throw new Error('網路通訊異常');
+        
+        const rawText = await response.text();
+        const parsedRows = parseCSV(rawText);
+
+        // 跳過 CSV 第一行標題 (時間戳記, 名字, 悄悄話)
+        const dataRows = parsedRows.slice(1);
+
+        // 將陣列轉存成 JSON 物件陣列
+        messagesData = dataRows.map(row => {
+          return {
+            timestamp: row[0] || '未知時間',
+            name: row[1] || '匿名大俠',
+            content: row[2] || '（無留言內容）'
+          };
+        }).filter(item => item.content !== '（無留言內容）'); // 過濾無內容的資料
+
+        // 隱藏載入中動畫
+        document.getElementById('loading').style.display = 'none';
+
+        if (messagesData.length === 0) {
+          document.getElementById('wall').innerHTML = '<p style="text-align:center; width:100%; font-weight:bold;">目前還沒有任何留言喔！</p>';
+          return;
+        }
+
+        // 渲染卡片牆並啟動輪播
+        renderCards(messagesData);
+        startCarousel();
+
+      } catch (error) {
+        console.error('讀取失敗:', error);
+        document.getElementById('loading').innerHTML = `
+          <div class="comic-loading-box" style="border-color: red;">
+            <div class="loading-text" style="color: red;">⚠️ 讀取失敗</div>
+            <p style="font-size:0.85rem; margin-top:0.5rem; font-weight:bold;">請檢查網路連線或 CSV 網址設定。</p>
+          </div>
+        `;
+      }
+    }
+
+    /* =========================================================
+       3. 動態生成卡片 DOM (Render Cards)
+       ========================================================= */
+    function renderCards(data) {
+      const wall = document.getElementById('wall');
+      wall.innerHTML = ''; // 清空內容
+
+      data.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.id = `card-${index}`;
+
+        // 轉義 HTML 避免 XSS 攻擊
+        const safeName = escapeHTML(item.name);
+        const safeContent = escapeHTML(item.content);
+        const safeTime = escapeHTML(formatTime(item.timestamp));
+
+        card.innerHTML = `
+          <div class="card-header">
+            <span class="card-author">${safeName}</span>
+            <span class="card-time">${safeTime}</span>
+          </div>
+          <div class="card-content">${safeContent}</div>
+        `;
+
+        wall.appendChild(card);
+      });
+    }
+
+    /* =========================================================
+       4. 隨時間輪播高亮控制 (Carousel Animation)
+       ========================================================= */
+    function highlightCard(index) {
+      const allCards = document.querySelectorAll('.card');
+
+      allCards.forEach((card, i) => {
+        if (i === index) {
+          // 被選中的卡片：加上高亮樣式，移除暗化
+          card.classList.add('highlight');
+          card.classList.remove('dimmed');
+
+          // 自動柔和捲動，讓當前高亮的卡片保持在畫面視野內
+          card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+          // 未被選中的卡片：加上暗化與模糊樣式
+          card.classList.remove('highlight');
+          card.classList.add('dimmed');
+        }
+      });
+    }
+
+    function startCarousel() {
+      if (messagesData.length === 0) return;
+
+      // 載入後立即高亮第一張卡片
+      highlightCard(currentIndex);
+
+      // 設定計時器，每隔指定秒數換下一張
+      carouselTimer = setInterval(() => {
+        currentIndex = (currentIndex + 1) % messagesData.length; // 循環輪播
+        highlightCard(currentIndex);
+      }, CAROUSEL_INTERVAL_MS);
+    }
+
+    /* =========================================================
+       5. 輔助工具 (Utility Functions)
+       ========================================================= */
+    // 安全過濾 HTML 字元
+    function escapeHTML(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // 格式化時間 (可將時間簡化)
+    function formatTime(timeStr) {
+      if (!timeStr) return '';
+      const parts = timeStr.split(' ');
+      return parts.length > 1 ? parts[0] : timeStr;
+    }
+
+    // 當 DOM 載入完成後執行主流程
+    window.addEventListener('DOMContentLoaded', fetchMessages);
+  </script>
+</body>
+</html>
